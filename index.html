@@ -1,0 +1,200 @@
+<!doctype>
+<html>
+    <head>
+        <link rel="stylesheet" href="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.17.1/build/styles/atom-one-dark-reasonable.min.css">
+        <style>
+        @font-face {
+          font-family: 'Gloria Hallelujah';
+          font-style: normal;
+          font-weight: 400;
+          font-display: fallback;
+          src: local('Gloria Hallelujah'), local('GloriaHallelujah'), url(font.woff2) format('woff2');
+          unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+    
+        body {
+          margin: 0;
+          font-family: 'Gloria Hallelujah', sans-serif;
+          font-size: 22px;
+          font-display: fallback;
+          letter-spacing: 0.05em;
+          line-height: 2;
+        }
+    
+        article {
+          padding: 15px 20px 40px;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+    
+        a,
+        a:hover,
+        a:visited {
+          color: inherit;
+          text-decoration: none;
+          outline: none;
+        }
+    
+        a.textlink {
+          box-shadow: 0 -6px #d2e8ff inset;
+        }
+
+        code {
+            font-size: 14px;
+        }
+    
+        @media (max-width: 600px) {
+          body {
+            font-size: 19px;
+            letter-spacing: 0.05em;
+          }
+    
+          article {
+            padding: 5px 16px 40px;
+          }
+        }
+        </style>
+    </head>
+    <body>
+      <article>
+        <header>
+          <h1>BCHD Fountainhead</h1>
+        </header>
+        <section>
+          <p>
+            bchd is an alternative full node bitcoin cash implementation written in Go (golang) that allows for easy querying of the blockchain. It may be used as an alternative to <a class="textlink" href="https://rest.bitcoin.com" rel="noopener" target="_blank">rest.bitcoin.com</a>.
+          </p>
+          <p>
+            We provide public access via <a class="textlink" href="https://grpc.io/" rel="noopener" target="_blank">gRPC</a> at
+            <a class="textlink" href="https://bchd.fountainhead.cash" rel="noopener" target="_blank">bchd.fountainhead.cash:443</a> with a limit of 10 reqs/second.
+          </p>
+        </section>
+        <section style="margin-top: 60px;">
+          <h3 style="margin-bottom: 0;">Get raw transaction</h3>
+          <p>Using <a class="textlink" href="https://www.npmjs.com/package/grpc-bchrpc-node" rel="noopener" target="_blank">grpc-bchrpc-node</a> we are able to to query txid <b>1155..a7e8</b> and receive back corresponding raw tx data.</p>
+
+          <div>
+            <pre><code class="javascript">const GrpcClient = require('grpc-bchrpc-node');
+const grpc = new GrpcClient.GrpcClient({ url: 'bchd.fountainhead.cash:443' });
+
+const txid = '11556da6ee3cb1d14727b3a8f4b37093b6fecd2bc7d577a02b4e98b7be58a7e8';
+grpc.getRawTransaction({ hash: txid, reversedHashOrder: true })
+.then(res => {
+  const txdata = Buffer.from(res.getTransaction_asU8()).toString('hex');
+  console.log(txdata);
+});
+</code></pre>
+          </div>
+          <p>Take note of the <i>reversedHashOrder</i> parameter.</p>
+        </section>
+        <section style="margin-top: 60px;">
+          <h3 style="margin-bottom: 0;">Get raw block</h3>
+		  <p>Getting raw block is very similar to getting raw transaction above.</p>
+
+          <div>
+            <pre><code class="javascript">const GrpcClient = require('grpc-bchrpc-node');
+const grpc = new GrpcClient.GrpcClient({ url: 'bchd.fountainhead.cash:443' });
+
+// load from block hash using hash parameter
+const block_hash = '0000000000000000004bdf1a301bec2ceaf314d53600cf1a4fc43222b267d7a8';
+grpc.getRawBlock({ hash: block_hash, reversedHashOrder: true })
+.then(res => {
+  console.log(Buffer.from(res.getBlock_asU8()).toString('hex'));
+});
+
+// load from block height using index parameter
+const block_height = 600123;
+grpc.getRawBlock({ index: block_height })
+.then(res => {
+  console.log(Buffer.from(res.getBlock_asU8()).toString('hex'));
+});
+</code></pre>
+          </div>
+          <p>Take note of the <i>reversedHashOrder</i> parameter.</p>
+        </section>
+        <section style="margin-top: 60px;">
+          <h3 style="margin-bottom: 0;">Get UTXOs for an address</h3>
+          <p>If we are implementing a wallet it is very important to get a list of UTXOs associated with an address.</p>
+          <div>
+            <pre><code class="javascript">const GrpcClient = require('grpc-bchrpc-node');
+const grpc = new GrpcClient.GrpcClient({ url: 'bchd.fountainhead.cash:443' });
+const address = 'bitcoincash:qrcuqadqrzp2uztjl9wn5sthepkg22majyxw4gmv6p';
+grpc.getAddressUtxos({ address: address, includeMempool: true })
+.then(res => {
+  res.getOutputsList().forEach(output => {
+    const outpoint = output.getOutpoint();
+    const obj = {
+      txid:          Buffer.from(outpoint.getHash_asU8().reverse()).toString('hex'),
+      vout:          outpoint.getIndex(),
+      value:         output.getValue(),
+      pubkey_script: Buffer.from(output.getPubkeyScript_asU8()).toString('hex'),
+      block_height:  output.getBlockHeight(),
+      coinbase:      output.getIsCoinbase(),
+    };
+    console.log(obj);
+  });
+});
+</code></pre>
+          </div>
+          <p>Notice how we must reverse the txid, this is because bchd uses bitcoin's reverse format.</p>
+        </section>
+        <section style="margin-top: 60px;">
+          <h3 style="margin-bottom: 0;">Broadcast transaction</h3>
+          <p>Let's show an example of creating a transaction with <a class="textlink" href="https://www.npmjs.com/package/bitcore-lib-cash" rel="noopener" target="_blank">bitcore-lib-cash</a> and broadcasting with bchd.</p>
+          <div>
+            <pre><code class="javascript">const GrpcClient = require('grpc-bchrpc-node');
+const bitcore = require('bitcore-lib-cash');
+
+const grpc = new GrpcClient.GrpcClient({ url: 'bchd.fountainhead.cash:443' });
+
+const privateKey = new bitcore.PrivateKey('L1uyy5qTuGrVXrmrsvHWHgVzW9kKdrp27wBC7Vs6nZDTF2BRUVwy');
+const utxo = {
+  txId:        '115e8f72f39fad874cfab0deed11a80f24f967a84079fb56ddf53ea02e308986',
+  outputIndex: 0,
+  address:     'bitcoincash:qprcvtlpvhnpyxhcp4wau8ktg78dzuzktvetlc7g9s',
+  script:      '76a91447862fe165e6121af80d5dde1ecb478ed170565b88ac',
+  satoshis:    50000
+};
+
+const txdata = new bitcore.Transaction()
+  .from(utxo)
+  .to('bitcoincash:qzkkrr85xvankfy0jazw36qak2ty6zhrjugpet7mt3', 15000)
+  .sign(privateKey)
+  .serialize();
+
+grpc.submitTransaction({ txnHex: txdata })
+.then(res => {
+  console.log(res);
+});
+</code></pre>
+          </div>
+		  <p>Note: this will not work, you will need your own UTXO and your own private key :)</p>
+        </section>
+        <section style="margin-top: 60px;">
+          <h3 style="margin-bottom: 0;">Get blockchain info</h3>
+          <p>We might want to query the node to get latest block information or information about bchd.</p>
+          <div>
+            <pre><code class="javascript">const GrpcClient = require('grpc-bchrpc-node');
+const grpc = new GrpcClient.GrpcClient({ url: 'bchd.fountainhead.cash:443' });
+grpc.getBlockchainInfo()
+.then(res => {
+  const obj = {
+    net:               res.getBitcoinNet(),
+    best_block_height: res.getBestHeight(),
+    best_block_hash:   Buffer.from(res.getBestBlockHash_asU8().reverse()).toString('hex'),
+    difficulty:        res.getDifficulty(),
+    median_time:       res.getMedianTime(),
+    tx_index:          res.getTxIndex(),
+    addr_index:        res.getAddrIndex()
+  };
+  console.log(obj);
+});
+</code></pre>
+          </div>
+          <p>Notice how we must reverse the block hash for same reason as txhash.</p>
+        </section>
+      </article>
+      <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.17.1/build/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script>
+    </body>
+</html>
